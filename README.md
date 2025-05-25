@@ -133,6 +133,31 @@ curl -X POST http://localhost:8000/api/reservas \
 - **Vehículo**: Coche, moto o furgoneta gestionado en el sistema.
 - **Estado de reserva**: pendiente, confirmada, cancelada, finalizada.
 
+## 🖥️ Desarrollado y probado con
+
+### Entorno de desarrollo
+- **Sistema Operativo**: Windows 10/11
+- **Terminal**: PowerShell
+
+### Backend
+- **PHP**: 8.4.6 (ZTS Visual C++ 2022 x64)
+- **Composer**: 2.8.4
+- **Laravel Framework**: 12.0
+- **Laravel Sanctum**: 4.1
+- **Laravel Tinker**: 2.10.1
+
+### Frontend
+- **Node.js**: v22.13.1
+- **npm**: 11.3.0
+- **React**: 18.x
+- **Material-UI**: Última versión estable
+
+### Base de datos
+- **SQLite**: Incluido en PHP
+
+### Extensiones PHP requeridas
+- BCMath, Ctype, cURL, DOM, Fileinfo, JSON, Mbstring, OpenSSL, PDO, Tokenizer, XML
+
 ---
 
 ## 🤝 Contribuir
