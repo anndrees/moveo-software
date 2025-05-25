@@ -69,10 +69,21 @@ export default function MenuLateral({ modoAdmin, setModoAdmin }) {
       <List>
         {menuActual.map((opcion) => (
           <ListItem
-            button            key={opcion.texto}
+            key={opcion.texto}
             component={Link}
             to={opcion.ruta}
             selected={location.pathname === opcion.ruta}
+            sx={{
+              '&:hover': {
+                backgroundColor: 'action.hover',
+              },
+              '&.Mui-selected': {
+                backgroundColor: 'action.selected',
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                },
+              },
+            }}
           >
             <ListItemIcon>{opcion.icono}</ListItemIcon>
             <ListItemText primary={opcion.texto} />

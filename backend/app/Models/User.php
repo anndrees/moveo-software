@@ -25,17 +25,22 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'nombre',
-        'apellidos',
         'email',
         'password',
-        'telefono',
-        'documento_identidad',
-        'primera_visita',
+        'google_id',
+        'avatar',
         'rol',
         'direccion',
         'numero_carnet',
         'fecha_caducidad_carnet',
         'foto_perfil',
+        'email_verified_at',
+        'remember_token'
+    ];
+    
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'fecha_caducidad_carnet' => 'date',
     ];
 
     /**

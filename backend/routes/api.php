@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\UsuarioController;
 Route::middleware(['auth:sanctum'])->group(function () {
     // Route::middleware(['admin'])->group(function () {...});
     Route::apiResource('vehiculos', VehiculoController::class);
+    Route::get('vehiculos/estadisticas/precios', [VehiculoController::class, 'estadisticasPrecios']);
     Route::apiResource('clientes', ClienteController::class);
     Route::apiResource('reservas', ReservaController::class);
     Route::apiResource('mantenimientos', \App\Http\Controllers\MantenimientoController::class);

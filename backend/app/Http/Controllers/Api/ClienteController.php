@@ -4,42 +4,80 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ClienteController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Usuarios con rol cliente
-        $usuarios = \App\Models\Usuario::where('rol', 'cliente')->get()->map(function ($usuario) {
-            return [
-                'id' => $usuario->id,
-                'nombre' => $usuario->nombre,
-                'apellidos' => $usuario->apellidos,
-                'email' => $usuario->email,
-                'telefono' => $usuario->telefono,
-                'documento_identidad' => $usuario->documento_identidad,
-                'fecha_alta' => $usuario->created_at,
-                'total_reservas' => method_exists($usuario, 'reservas') ? $usuario->reservas()->count() : null,
-                'origen' => 'sistema',
-            ];
-        });
-        // Clientes de la tabla clientes
-        $clientes = \App\Models\Cliente::all()->map(function ($cliente) {
-            return [
-                'id' => 'C' . $cliente->id, // para diferenciar ids
-                'nombre' => $cliente->nombre,
-                'apellidos' => $cliente->apellidos ?? '',
-                'email' => $cliente->email,
-                'telefono' => $cliente->telefono,
-                'documento_identidad' => $cliente->documento_identidad,
-                'fecha_alta' => $cliente->created_at,
-                'total_reservas' => method_exists($cliente, 'reservas') ? $cliente->reservas()->count() : null,
-                'origen' => 'oficina',
-            ];
-        });
-        // Unir ambos arrays
-        $todos = $usuarios->concat($clientes)->values();
-        return response()->json($todos);
+        try {
+            // Obtener página actual y elementos por página del request
+            $page = $request->input('page', 1);
+            $perPage = $request->input('per_page', 12);
+            
+            // Iniciar la consulta
+            $query = \App\Models\Cliente::select('id', 'nombre', 'apellidos', 'email', 'telefono', 'documento_identidad', 'created_at');
+            
+            // Aplicar filtros de búsqueda
+            if ($request->has('nombre') && $request->nombre) {
+                $query->where(function($q) use ($request) {
+                    $q->where('nombre', 'like', '%' . $request->nombre . '%')
+                      ->orWhere('apellidos', 'like', '%' . $request->nombre . '%');
+                });
+            }
+            
+            if ($request->has('email') && $request->email) {
+                $query->where('email', 'like', '%' . $request->email . '%');
+            }
+            
+            if ($request->has('telefono') && $request->telefono) {
+                // Eliminar todos los caracteres que no sean dígitos
+                $telefonoBusqueda = preg_replace('/[^0-9]/', '', $request->telefono);
+                
+                $query->where(function($q) use ($telefonoBusqueda) {
+                    $q->whereRaw("REPLACE(REPLACE(telefono, '-', ''), ' ', '') LIKE ?", ['%' . $telefonoBusqueda . '%']);
+                });
+            }
+            
+            if ($request->has('documento_identidad') && $request->documento_identidad) {
+                // Eliminar todos los caracteres que no sean letras ni números
+                $documentoBusqueda = preg_replace('/[^A-Za-z0-9]/', '', $request->documento_identidad);
+                
+                $query->where(function($q) use ($documentoBusqueda) {
+                    $q->whereRaw("REPLACE(REPLACE(REPLACE(documento_identidad, '-', ''), ' ', ''), '.', '') LIKE ?", ['%' . $documentoBusqueda . '%']);
+                });
+            }
+            
+            // Aplicar ordenación y paginación
+            $clientes = $query->orderBy('created_at', 'desc')
+                           ->paginate($perPage, ['*'], 'page', $page);
+            
+            // Transformar la colección
+            $clientes->getCollection()->transform(function ($cliente) {
+                return [
+                    'id' => $cliente->id,
+                    'nombre' => $cliente->nombre,
+                    'apellidos' => $cliente->apellidos ?? '',
+                    'email' => $cliente->email,
+                    'telefono' => $cliente->telefono ?? 'No especificado',
+                    'documento_identidad' => $cliente->documento_identidad ?? 'No especificado',
+                    'fecha_alta' => $cliente->created_at->format('Y-m-d H:i:s'),
+                    'total_reservas' => 0, // Valor temporal
+                    'origen' => 'oficina',
+                    'tipo' => 'cliente'
+                ];
+            });
+            
+            return response()->json($clientes);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en ClienteController@index: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Error al cargar los clientes',
+                'message' => $e->getMessage(),
+                'trace' => env('APP_DEBUG') ? $e->getTraceAsString() : null
+            ], 500);
+        }
     }
 
     public function store(Request $peticion)

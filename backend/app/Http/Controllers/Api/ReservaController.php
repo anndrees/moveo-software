@@ -7,9 +7,64 @@ use Illuminate\Http\Request;
 
 class ReservaController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $reservas = \App\Models\Reserva::with(['cliente', 'vehiculo'])->get();
+        $query = \App\Models\Reserva::with(['cliente', 'vehiculo']);
+        
+        // Aplicar filtros de búsqueda
+        if ($request->has('matricula') && $request->matricula) {
+            $query->whereHas('vehiculo', function($q) use ($request) {
+                $q->where('matricula', 'like', '%' . $request->matricula . '%');
+            });
+        }
+        
+        if ($request->has('cliente') && $request->cliente) {
+            $query->whereHas('cliente', function($q) use ($request) {
+                $q->where('nombre', 'like', '%' . $request->cliente . '%')
+                  ->orWhere('apellidos', 'like', '%' . $request->cliente . '%')
+                  ->orWhere('email', 'like', '%' . $request->cliente . '%');
+            });
+        }
+        
+        if ($request->has('estado') && $request->estado) {
+            $query->where('estado', $request->estado);
+        }
+        
+        $reservas = $query->orderBy('created_at', 'desc')
+                        ->paginate(12);
+            
+        // Formatear las fechas y asegurar que los datos estén en el formato correcto
+        $reservas->getCollection()->transform(function ($reserva) {
+            // Asegurar que las fechas estén en el formato correcto
+            if ($reserva->fecha_inicio && is_string($reserva->fecha_inicio)) {
+                $reserva->fecha_inicio = \Carbon\Carbon::parse($reserva->fecha_inicio)->format('Y-m-d');
+            }
+            if ($reserva->fecha_fin && is_string($reserva->fecha_fin)) {
+                $reserva->fecha_fin = \Carbon\Carbon::parse($reserva->fecha_fin)->format('Y-m-d');
+            }
+            
+            // Asegurar que los precios sean números
+            if (isset($reserva->precio_total)) {
+                $reserva->precio_total = (float) $reserva->precio_total;
+            }
+            
+            // Asegurar que las relaciones estén presentes
+            if ($reserva->cliente) {
+                $reserva->cliente->nombre_completo = trim($reserva->cliente->nombre . ' ' . ($reserva->cliente->apellidos ?? ''));
+            }
+            
+            if ($reserva->vehiculo) {
+                $reserva->vehiculo->nombre_completo = trim(($reserva->vehiculo->marca ?? '') . ' ' . ($reserva->vehiculo->modelo ?? ''));
+                
+                // Asegurar que la imagen tenga la URL completa
+                if ($reserva->vehiculo->imagen) {
+                    $reserva->vehiculo->imagen = asset('storage/' . $reserva->vehiculo->imagen);
+                }
+            }
+            
+            return $reserva;
+        });
+        
         return response()->json($reservas);
     }
 

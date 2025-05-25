@@ -23,61 +23,164 @@ import AddIcon from '@mui/icons-material/Add';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
+import Pagination from '@mui/material/Pagination';
+import InputAdornment from '@mui/material/InputAdornment';
+import SearchIcon from '@mui/icons-material/Search';
+import PersonIcon from '@mui/icons-material/Person';
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 
 export default function AdminReservas() {
-  const [reservas, setReservas] = useState([]);
-  const [vehiculos, setVehiculos] = useState([]);
-  const [clientes, setClientes] = useState([]);
+  const [filtros, setFiltros] = useState({
+    matricula: '',
+    cliente: '',
+    estado: ''
+  });
+  
+  const [reservas, setReservas] = useState({
+    data: [],
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0
+  });
+  const [vehiculos, setVehiculos] = useState({
+    data: [],
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0
+  });
+  const [clientes, setClientes] = useState({
+    data: [],
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0
+  });
   const [abrirModal, setAbrirModal] = useState(false);
   const [reservaActual, setReservaActual] = useState(null);
   const [eliminando, setEliminando] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
+  const [paginaActual, setPaginaActual] = useState(1);
 
   const token = localStorage.getItem('token');
   const urlApi = import.meta.env.DEV ? 'http://localhost:8000/api' : '/api';
 
   useEffect(() => {
-    obtenerReservas();
+    obtenerReservas(paginaActual);
     obtenerVehiculos();
     obtenerClientes();
-  }, []);
+  }, [paginaActual]);
 
-  const obtenerReservas = async () => {
+  // Manejar cambios en los filtros
+  const manejarCambioFiltro = (e) => {
+    const { name, value } = e.target;
+    setFiltros(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Manejar búsqueda
+  const manejarBuscar = (e) => {
+    e.preventDefault();
+    obtenerReservas(1);
+  };
+
+  // Limpiar filtros y realizar búsqueda
+  const limpiarFiltros = (e) => {
+    e?.preventDefault();
+    
+    // Crear un objeto con todos los filtros vacíos
+    const filtrosLimpios = {
+      matricula: '',
+      cliente: '',
+      estado: ''
+    };
+    
+    // Actualizar el estado de los filtros
+    setFiltros(filtrosLimpios);
+    
+    // Realizar la búsqueda con los filtros vacíos
+    const params = new URLSearchParams({
+      page: 1,
+      per_page: 10,
+      ...filtrosLimpios
+    });
+    
+    obtenerReservas(1, params);
+  };
+
+  const obtenerReservas = async (pagina = 1, parametrosBusqueda = null) => {
     setCargando(true);
     try {
-      const resp = await fetch(`${urlApi}/reservas`, {
+      // Usar los parámetros proporcionados o construir desde los filtros actuales
+      const params = parametrosBusqueda || new URLSearchParams({
+        page: pagina,
+        per_page: 10,
+        ...(filtros.matricula && { matricula: filtros.matricula }),
+        ...(filtros.cliente && { cliente: filtros.cliente }),
+        ...(filtros.estado && { estado: filtros.estado })
+      });
+      
+      const resp = await fetch(`${urlApi}/reservas?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!resp.ok) throw new Error('Error al cargar reservas');
       const data = await resp.json();
-      setReservas(Array.isArray(data) ? data : []);
+      setReservas({
+        data: data.data || [],
+        current_page: data.current_page || 1,
+        last_page: data.last_page || 1,
+        per_page: data.per_page || 10,
+        total: data.total || 0
+      });
+      setPaginaActual(data.current_page || 1);
     } catch (e) {
+      console.error('Error al cargar reservas:', e);
       setError('Error al cargar reservas');
     } finally {
       setCargando(false);
     }
   };
 
-  const obtenerVehiculos = async () => {
+  const obtenerVehiculos = async (pagina = 1) => {
     try {
-      const resp = await fetch(`${urlApi}/vehiculos`, {
+      const resp = await fetch(`${urlApi}/vehiculos?page=${pagina}&per_page=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!resp.ok) throw new Error('Error al cargar vehículos');
       const data = await resp.json();
-      setVehiculos(data);
+      setVehiculos({
+        data: data.data || [],
+        current_page: data.current_page || 1,
+        last_page: data.last_page || 1,
+        per_page: data.per_page || 100,
+        total: data.total || 0
+      });
     } catch (e) {
+      console.error('Error al cargar vehículos:', e);
       setError('Error al cargar vehículos');
     }
   };
 
-  const obtenerClientes = async () => {
+  const obtenerClientes = async (pagina = 1) => {
     try {
-      const resp = await fetch(`${urlApi}/clientes`, {
+      const resp = await fetch(`${urlApi}/clientes?page=${pagina}&per_page=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!resp.ok) throw new Error('Error al cargar clientes');
       const data = await resp.json();
-      setClientes(data);
+      setClientes({
+        data: data.data || [],
+        current_page: data.current_page || 1,
+        last_page: data.last_page || 1,
+        per_page: data.per_page || 100,
+        total: data.total || 0
+      });
     } catch (e) {
+      console.error('Error al cargar clientes:', e);
       setError('Error al cargar clientes');
     }
   };
@@ -203,6 +306,79 @@ export default function AdminReservas() {
           </Button>
         </Box>
         {error && <Typography color="error">{error}</Typography>}
+        
+        {/* Sección de búsqueda */}
+        <Paper elevation={2} sx={{ p: 2, mb: 3, mt: 2 }}>
+          <form onSubmit={manejarBuscar}>
+            <Box display="flex" flexWrap="wrap" gap={2} alignItems="flex-end">
+              <TextField
+                size="small"
+                name="matricula"
+                label="Matrícula"
+                placeholder="Buscar por matrícula"
+                value={filtros.matricula}
+                onChange={manejarCambioFiltro}
+                sx={{ minWidth: 180, bgcolor: 'white' }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <DirectionsCarIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              
+              <TextField
+                size="small"
+                name="cliente"
+                label="Cliente"
+                placeholder="Buscar por nombre de cliente"
+                value={filtros.cliente}
+                onChange={manejarCambioFiltro}
+                sx={{ minWidth: 220, bgcolor: 'white' }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PersonIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              
+              <TextField
+                select
+                size="small"
+                name="estado"
+                label="Estado"
+                value={filtros.estado}
+                onChange={manejarCambioFiltro}
+                sx={{ minWidth: 180, bgcolor: 'white' }}
+              >
+                <MenuItem value="">Todos los estados</MenuItem>
+                <MenuItem value="pendiente">Pendiente</MenuItem>
+                <MenuItem value="confirmada">Confirmada</MenuItem>
+                <MenuItem value="en_curso">En curso</MenuItem>
+                <MenuItem value="completada">Completada</MenuItem>
+                <MenuItem value="cancelada">Cancelada</MenuItem>
+              </TextField>
+              
+              <Box sx={{ display: 'flex', gap: 1, ml: 'auto' }}>
+                <Button 
+                  onClick={limpiarFiltros}
+                  variant="outlined"
+                  color="inherit"
+                  disabled={!filtros.matricula && !filtros.cliente && !filtros.estado}
+                >
+                  Limpiar Filtros
+                </Button>
+                <Button type="submit" variant="contained" color="primary" startIcon={<SearchIcon />}>
+                  Buscar
+                </Button>
+              </Box>
+            </Box>
+          </form>
+        </Paper>
+        
         <TableContainer component={Paper} sx={{ mt: 2 }}>
           <Table>
             <TableHead>
@@ -216,27 +392,74 @@ export default function AdminReservas() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {reservas.length === 0 && (
+              {cargando ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center">Cargando reservas...</TableCell>
+                </TableRow>
+              ) : reservas.data.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} align="center">No hay reservas registradas.</TableCell>
                 </TableRow>
+              ) : (
+                reservas.data.map((reserva) => (
+                  <TableRow key={reserva.id}>
+                    <TableCell>{reserva.vehiculo?.matricula || ''} {reserva.vehiculo?.modelo ? `(${reserva.vehiculo.modelo})` : ''}</TableCell>
+                    <TableCell>{reserva.cliente?.nombre || ''} {reserva.cliente?.apellidos || ''}</TableCell>
+                    <TableCell>{dayjs(reserva.fecha_inicio).format('DD-MM-YYYY')}</TableCell>
+                    <TableCell>{dayjs(reserva.fecha_fin).format('DD-MM-YYYY')}</TableCell>
+                    <TableCell>{reserva.estado}</TableCell>
+                    <TableCell align="center">
+                      <IconButton color="info" disabled><VisibilityIcon /></IconButton>
+                      <IconButton color="primary" onClick={() => abrirEditar(reserva)}><EditIcon /></IconButton>
+                      <IconButton color="error" onClick={() => setEliminando(reserva.id)}><DeleteIcon /></IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
-              {reservas.map((reserva) => (
-                <TableRow key={reserva.id}>
-                  <TableCell>{reserva.vehiculo?.matricula || ''} {reserva.vehiculo?.modelo ? `(${reserva.vehiculo.modelo})` : ''}</TableCell>
-                  <TableCell>{reserva.cliente?.nombre || ''} {reserva.cliente?.apellidos || ''}</TableCell>
-                  <TableCell>{dayjs(reserva.fecha_inicio).format('DD-MM-YYYY')}</TableCell>
-                  <TableCell>{dayjs(reserva.fecha_fin).format('DD-MM-YYYY')}</TableCell>
-                  <TableCell>{reserva.estado}</TableCell>
-                  <TableCell align="center">
-                    <IconButton color="info" disabled><VisibilityIcon /></IconButton>
-                    <IconButton color="primary" onClick={() => abrirEditar(reserva)}><EditIcon /></IconButton>
-                    <IconButton color="error" onClick={() => setEliminando(reserva.id)}><DeleteIcon /></IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
             </TableBody>
           </Table>
+          {/* Paginación */}
+          <Box display="flex" justifyContent="center" mt={4} mb={2}>
+            <Pagination
+              count={reservas.last_page}
+              page={paginaActual}
+              onChange={(event, page) => setPaginaActual(page)}
+              color="primary"
+              shape="rounded"
+              showFirstButton
+              showLastButton
+              disabled={cargando}
+              sx={{
+                '& .MuiPaginationItem-root': {
+                  color: 'text.primary',
+                  '&.Mui-selected': {
+                    backgroundColor: 'primary.main',
+                    color: 'white',
+                    '&:hover': {
+                      backgroundColor: 'primary.dark',
+                    },
+                  },
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  },
+                },
+              }}
+            />
+            {reservas.last_page > 0 && (
+              <Box 
+                component="span" 
+                sx={{ 
+                  ml: 2, 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  color: 'text.secondary',
+                  fontSize: '0.875rem'
+                }}
+              >
+                {reservas.total} reservas en total
+              </Box>
+            )}
+          </Box>
         </TableContainer>
         {/* Modal Crear/Editar */}
         <Dialog open={abrirModal} onClose={cerrarModal} maxWidth="sm" fullWidth>
@@ -252,7 +475,7 @@ export default function AdminReservas() {
                 fullWidth
               >
                 <MenuItem value="">Selecciona un vehículo</MenuItem>
-                {vehiculos.map((v) => (
+                {vehiculos.data.map((v) => (
                   <MenuItem key={v.id} value={v.id}>{v.matricula} {v.modelo ? `(${v.modelo})` : ''}</MenuItem>
                 ))}
               </Select>
@@ -267,7 +490,7 @@ export default function AdminReservas() {
                 fullWidth
               >
                 <MenuItem value="">Selecciona un cliente</MenuItem>
-                {clientes.map((c) => (
+                {clientes.data.map((c) => (
                   <MenuItem key={c.id} value={c.id}>{c.nombre} {c.apellidos}</MenuItem>
                 ))}
               </Select>

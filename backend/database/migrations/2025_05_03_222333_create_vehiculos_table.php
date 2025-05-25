@@ -19,8 +19,14 @@ $table->enum('tipo', ['SUV', 'Economy', 'Luxury', 'Compact', 'Sedan', 'Convertib
 $table->string('imagen')->nullable();
 $table->string('localizacion');
 $table->enum('estado', ['disponible', 'ocupado', 'mantenimiento'])->default('disponible');
+$table->decimal('precio_dia', 8, 2);
+$table->text('descripcion')->nullable();
+$table->json('caracteristicas')->nullable();
+$table->string('color');
+$table->integer('kilometraje')->default(0);
 $table->date('fecha_proximo_mantenimiento')->nullable();
 $table->timestamps();
+$table->softDeletes();
         });
     }
 
