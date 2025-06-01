@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Log as Logger;
+use App\Models\Reserva;
+use App\Models\Cliente;
 
 class ClienteController extends Controller
 {
@@ -52,8 +54,16 @@ class ClienteController extends Controller
             $clientes = $query->orderBy('created_at', 'desc')
                            ->paginate($perPage, ['*'], 'page', $page);
             
+            // Cargar el contador de reservas para todos los clientes de una vez
+            $clientesIds = $clientes->pluck('id');
+            $reservasPorCliente = \App\Models\Reserva::where('cliente_type', 'App\\Models\\Cliente')
+                ->whereIn('cliente_id', $clientesIds)
+                ->selectRaw('cliente_id, COUNT(*) as total')
+                ->groupBy('cliente_id')
+                ->pluck('total', 'cliente_id');
+            
             // Transformar la colección
-            $clientes->getCollection()->transform(function ($cliente) {
+            $clientes->getCollection()->transform(function ($cliente) use ($reservasPorCliente) {
                 return [
                     'id' => $cliente->id,
                     'nombre' => $cliente->nombre,
@@ -62,7 +72,7 @@ class ClienteController extends Controller
                     'telefono' => $cliente->telefono ?? 'No especificado',
                     'documento_identidad' => $cliente->documento_identidad ?? 'No especificado',
                     'fecha_alta' => $cliente->created_at->format('Y-m-d H:i:s'),
-                    'total_reservas' => 0, // Valor temporal
+                    'total_reservas' => $reservasPorCliente->get($cliente->id, 0),
                     'origen' => 'oficina',
                     'tipo' => 'cliente'
                 ];
@@ -71,7 +81,7 @@ class ClienteController extends Controller
             return response()->json($clientes);
             
         } catch (\Exception $e) {
-            \Log::error('Error en ClienteController@index: ' . $e->getMessage());
+            Logger::error('Error en ClienteController@index: ' . $e->getMessage());
             return response()->json([
                 'error' => 'Error al cargar los clientes',
                 'message' => $e->getMessage(),

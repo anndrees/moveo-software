@@ -34,7 +34,26 @@ class ReservaController extends Controller
                         ->paginate(12);
             
         // Formatear las fechas y asegurar que los datos estén en el formato correcto
-        $reservas->getCollection()->transform(function ($reserva) {
+        $hoy = \Carbon\Carbon::today();
+        $reservas->getCollection()->transform(function ($reserva) use ($hoy) {
+            // Cambiar estado si corresponde (no tocar pendiente ni cancelada)
+            if (!in_array($reserva->estado, ['pendiente', 'cancelada'])) {
+                $inicio = \Carbon\Carbon::parse($reserva->fecha_inicio);
+                $fin = \Carbon\Carbon::parse($reserva->fecha_fin);
+                $nuevoEstado = $reserva->estado;
+                if ($hoy->lt($inicio)) {
+                    $nuevoEstado = 'confirmada';
+                } elseif ($hoy->gt($fin)) {
+                    $nuevoEstado = 'finalizada';
+                } elseif ($hoy->between($inicio, $fin)) {
+                    $nuevoEstado = 'en_curso';
+                }
+                if ($nuevoEstado !== $reserva->estado) {
+                    $reserva->estado = $nuevoEstado;
+                    // Guardar solo si ha cambiado
+                    $reserva->save();
+                }
+            }
             // Asegurar que las fechas estén en el formato correcto
             if ($reserva->fecha_inicio && is_string($reserva->fecha_inicio)) {
                 $reserva->fecha_inicio = \Carbon\Carbon::parse($reserva->fecha_inicio)->format('Y-m-d');
@@ -42,26 +61,20 @@ class ReservaController extends Controller
             if ($reserva->fecha_fin && is_string($reserva->fecha_fin)) {
                 $reserva->fecha_fin = \Carbon\Carbon::parse($reserva->fecha_fin)->format('Y-m-d');
             }
-            
             // Asegurar que los precios sean números
             if (isset($reserva->precio_total)) {
                 $reserva->precio_total = (float) $reserva->precio_total;
             }
-            
             // Asegurar que las relaciones estén presentes
             if ($reserva->cliente) {
                 $reserva->cliente->nombre_completo = trim($reserva->cliente->nombre . ' ' . ($reserva->cliente->apellidos ?? ''));
             }
-            
             if ($reserva->vehiculo) {
                 $reserva->vehiculo->nombre_completo = trim(($reserva->vehiculo->marca ?? '') . ' ' . ($reserva->vehiculo->modelo ?? ''));
-                
-                // Asegurar que la imagen tenga la URL completa
                 if ($reserva->vehiculo->imagen) {
                     $reserva->vehiculo->imagen = asset('storage/' . $reserva->vehiculo->imagen);
                 }
             }
-            
             return $reserva;
         });
         
@@ -116,6 +129,7 @@ $tipoCliente = null;
                 'fecha_inicio' => $datos['fecha_inicio'],
                 'fecha_fin' => $datos['fecha_fin'],
                 'estado' => $datos['estado'],
+                'precio_total' => $peticion->input('precio_total'),
             ]);
             return response()->json($reserva, 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -188,10 +202,115 @@ $peticion->merge([
 
     public function destroy($id)
     {
-        $reserva = \App\Models\Reserva::findOrFail($id);
-        $reserva->delete();
-        return response()->json(['mensaje' => 'Reserva eliminada']);
+        try {
+            $reserva = \App\Models\Reserva::findOrFail($id);
+            $reserva->delete();
+            
+            return response()->json([
+                'mensaje' => 'Reserva eliminada exitosamente',
+                'id' => $id
+            ]);
+            
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'mensaje' => 'No se encontró la reserva especificada',
+                'error' => $e->getMessage()
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'mensaje' => 'Error al eliminar la reserva',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
-
+    /**
+     * Cancela una reserva específica.
+     *
+     * @param int $id ID de la reserva a cancelar
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function cancelar($id)
+    {
+        try {
+            // Buscar la reserva o devolver 404 si no existe
+            $reserva = \App\Models\Reserva::findOrFail($id);
+            
+            // Verificar si la reserva ya está cancelada
+            if ($reserva->estado === 'cancelada') {
+                return response()->json([
+                    'mensaje' => 'La reserva ya está cancelada',
+                    'reserva' => $reserva
+                ], 200);
+            }
+            
+            // Actualizar el estado de la reserva a 'cancelada'
+            $reserva->estado = 'cancelada';
+            $reserva->save();
+            
+            // Cargar las relaciones para la respuesta
+            $reserva->load(['cliente', 'vehiculo']);
+            
+            return response()->json([
+                'mensaje' => 'Reserva cancelada exitosamente',
+                'reserva' => $reserva
+            ]);
+            
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'mensaje' => 'No se encontró la reserva especificada',
+                'error' => $e->getMessage()
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'mensaje' => 'Error al cancelar la reserva',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Marca una reserva como finalizada.
+     *
+     * @param int $id ID de la reserva a finalizar
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function finalizar($id)
+    {
+        try {
+            // Buscar la reserva o devolver 404 si no existe
+            $reserva = \App\Models\Reserva::findOrFail($id);
+            
+            // Verificar si la reserva ya está finalizada
+            if ($reserva->estado === 'finalizada') {
+                return response()->json([
+                    'mensaje' => 'La reserva ya está finalizada',
+                    'reserva' => $reserva
+                ], 200);
+            }
+            
+            // Actualizar el estado de la reserva a 'finalizada'
+            $reserva->estado = 'finalizada';
+            $reserva->save();
+            
+            // Cargar las relaciones para la respuesta
+            $reserva->load(['cliente', 'vehiculo']);
+            
+            return response()->json([
+                'mensaje' => 'Reserva marcada como finalizada exitosamente',
+                'reserva' => $reserva
+            ]);
+            
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'mensaje' => 'No se encontró la reserva especificada',
+                'error' => $e->getMessage()
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'mensaje' => 'Error al finalizar la reserva',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

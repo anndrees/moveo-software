@@ -45,7 +45,16 @@ class Vehiculo extends Model
         'fecha_ultimo_mantenimiento',
         'proximo_mantenimiento_km',
         'estado',
+        'imagen', // <-- Añadido para permitir la actualización
     ];
+
+    /**
+     * Obtiene los daños reportados para este vehículo.
+     */
+    public function danos()
+    {
+        return $this->hasMany(DanoVehiculo::class);
+    }
 
     /**
      * Los atributos que deben ser convertidos.

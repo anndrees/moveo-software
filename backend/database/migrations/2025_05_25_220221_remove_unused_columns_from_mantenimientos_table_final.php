@@ -40,7 +40,7 @@ return new class extends Migration
         // Añadir las columnas eliminadas en caso de rollback
         Schema::table('mantenimientos', function (Blueprint $table) {
             if (!Schema::hasColumn('mantenimientos', 'responsable')) {
-                $table->string('responsable')->after('factura_numero');
+                $table->string('responsable')->nullable()->default('Sistema')->after('factura_numero');
             }
             if (!Schema::hasColumn('mantenimientos', 'mano_obra')) {
                 $table->decimal('mano_obra', 10, 2)->default(0)->after('estado');

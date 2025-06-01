@@ -78,47 +78,69 @@ class MantenimientoController extends Controller
 
     public function store(Request $request)
     {
-        $datos = $request->validate([
-            'vehiculo_id' => 'required|exists:vehiculos,id',
-            'titulo' => 'required|string|max:255',
-            'descripcion' => 'nullable|string',
-            'fecha_inicio' => 'required|date',
-            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
-            'tipo' => 'required|in:revision,reparacion,mantenimiento,inspeccion,lavado,otro',
-            'prioridad' => 'required|in:baja,media,alta',
-            'costo' => 'required|numeric|min:0',
-            'estado' => 'required|in:programado,en_progreso,completado,cancelado',
-            'taller' => 'nullable|string|max:255',
-            'factura_numero' => 'nullable|string|max:100',
-            'responsable' => 'required|string|max:255',
-            'realizado_por' => 'nullable|string|max:255',
-            'kilometraje' => 'nullable|integer|min:0',
-            'observaciones' => 'nullable|string',
-            'mano_obra' => 'required|numeric|min:0',
-            'materiales' => 'required|numeric|min:0',
-        ]);
-        
-        // Asegurar que los valores numéricos sean correctos
-        $datos['costo'] = (float) $datos['costo'];
-        $datos['mano_obra'] = isset($datos['mano_obra']) ? (float) $datos['mano_obra'] : 0;
-        $datos['materiales'] = isset($datos['materiales']) ? (float) $datos['materiales'] : 0;
-        
-        // Si no se proporciona fecha de fin, establecerla como nula
-        if (empty($datos['fecha_fin'])) {
-            $datos['fecha_fin'] = null;
+        \Log::info('Datos recibidos en store de mantenimiento:', $request->all());
+        try {
+            $datos = $request->validate([
+                'vehiculo_id' => 'required|exists:vehiculos,id',
+                'titulo' => 'required|string|max:255',
+                'descripcion' => 'nullable|string',
+                'fecha_inicio' => 'required|date',
+                'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
+                'tipo' => 'required|in:revision,reparacion,mantenimiento,inspeccion,lavado,otro',
+                'prioridad' => 'required|in:baja,media,alta',
+                'costo' => 'required|numeric|min:0',
+                'estado' => 'required|in:programado,en_progreso,completado,cancelado',
+                'taller' => 'nullable|string|max:255',
+                'factura_numero' => 'nullable|string|max:100',
+                'responsable' => 'required|string|max:255',
+                'realizado_por' => 'nullable|string|max:255',
+                'kilometraje' => 'nullable|integer|min:0',
+                'observaciones' => 'nullable|string',
+                'mano_obra' => 'required|numeric|min:0',
+                'materiales' => 'required|numeric|min:0',
+            ]);
+            // Asegurar que los valores numéricos sean correctos
+            $datos['costo'] = (float) $datos['costo'];
+            $datos['mano_obra'] = isset($datos['mano_obra']) ? (float) $datos['mano_obra'] : 0;
+            $datos['materiales'] = isset($datos['materiales']) ? (float) $datos['materiales'] : 0;
+            // Si no se proporciona fecha de fin, establecerla como nula
+            if (empty($datos['fecha_fin'])) {
+                $datos['fecha_fin'] = null;
+            }
+            // Si no se proporciona realizado_por, usar el valor de responsable
+            // Normalizar campos NOT NULL para evitar errores de integridad
+            if (empty($datos['responsable'])) {
+                $datos['responsable'] = 'Sistema';
+            }
+            if (empty($datos['prioridad'])) {
+                $datos['prioridad'] = 'media';
+            }
+            if (!isset($datos['mano_obra']) || $datos['mano_obra'] === null) {
+                $datos['mano_obra'] = 0;
+            }
+            if (!isset($datos['materiales']) || $datos['materiales'] === null) {
+                $datos['materiales'] = 0;
+            }
+            if (empty($datos['realizado_por'])) {
+                $datos['realizado_por'] = $datos['responsable'];
+            }
+            // Forzar responsable por si acaso
+            $datos['responsable'] = $datos['responsable'] ?? 'Sistema';
+            if (empty($datos['responsable'])) {
+                $datos['responsable'] = 'Sistema';
+            }
+            \Log::info('Datos FINALES a guardar en la base de datos:', $datos);
+            $mantenimiento = Mantenimiento::create($datos);
+            // Cargar la relación con el vehículo para la respuesta
+            $mantenimiento->load('vehiculo');
+            return response()->json($mantenimiento, 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'mensaje' => 'Error al guardar mantenimiento',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ], 500);
         }
-        
-        // Si no se proporciona realizado_por, usar el valor de responsable
-        if (empty($datos['realizado_por'])) {
-            $datos['realizado_por'] = $datos['responsable'];
-        }
-        
-        $mantenimiento = Mantenimiento::create($datos);
-        
-        // Cargar la relación con el vehículo para la respuesta
-        $mantenimiento->load('vehiculo');
-        
-        return response()->json($mantenimiento, 201);
     }
 
     public function show(Mantenimiento $mantenimiento)

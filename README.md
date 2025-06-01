@@ -10,12 +10,15 @@
 ---
 
 ## 📖 Breve historia
+
 MOVEO nació en 2025 como solución interna para una pequeña empresa de alquiler de coches. Su éxito y facilidad de uso motivó su evolución a una plataforma moderna y abierta, con el objetivo de digitalizar el sector del alquiler de vehículos.
 
 ---
 
 ## ✨ Descripción funcional
+
 MOVEO permite:
+
 - Gestionar vehículos, clientes y reservas desde un panel de administración profesional.
 - Controlar el estado de cada vehículo (disponible, ocupado, en mantenimiento, alquilado).
 - Subir imágenes de vehículos y perfiles.
@@ -77,6 +80,7 @@ MOVEO permite:
 ## 🧪 Ejemplos de uso de la API
 
 ### Crear una reserva (cURL)
+
 ```bash
 curl -X POST http://localhost:8000/api/reservas \
   -H "Authorization: Bearer TU_TOKEN" \
@@ -91,6 +95,7 @@ curl -X POST http://localhost:8000/api/reservas \
 ```
 
 ### Respuesta exitosa (JSON)
+
 ```json
 {
   "id": 12,
@@ -136,10 +141,12 @@ curl -X POST http://localhost:8000/api/reservas \
 ## 🖥️ Desarrollado y probado con
 
 ### Entorno de desarrollo
+
 - **Sistema Operativo**: Windows 10/11
 - **Terminal**: PowerShell
 
 ### Backend
+
 - **PHP**: 8.4.6 (ZTS Visual C++ 2022 x64)
 - **Composer**: 2.8.4
 - **Laravel Framework**: 12.0
@@ -147,15 +154,18 @@ curl -X POST http://localhost:8000/api/reservas \
 - **Laravel Tinker**: 2.10.1
 
 ### Frontend
+
 - **Node.js**: v22.13.1
 - **npm**: 11.3.0
 - **React**: 18.x
 - **Material-UI**: Última versión estable
 
 ### Base de datos
+
 - **SQLite**: Incluido en PHP
 
 ### Extensiones PHP requeridas
+
 - BCMath, Ctype, cURL, DOM, Fileinfo, JSON, Mbstring, OpenSSL, PDO, Tokenizer, XML
 
 ---
@@ -163,6 +173,7 @@ curl -X POST http://localhost:8000/api/reservas \
 ## 🤝 Contribuir
 
 ¡Las contribuciones son bienvenidas!
+
 1. Haz un fork del repo
 2. Crea una rama con tu mejora: `git checkout -b mi-mejora`
 3. Haz commit de tus cambios: `git commit -am 'feat: mi mejora'`
@@ -174,6 +185,7 @@ Por favor, sigue los estilos de código y añade tests si aplica.
 ---
 
 ## 🎨 Estilos de código
+
 - **Frontend:** Sigue las reglas de ESLint y Prettier (configurado en el repo)
 - **Backend:** PSR-12 para PHP, comentarios claros y funciones en español
 - Usa nombres descriptivos y en español para variables y funciones
@@ -233,6 +245,7 @@ Por favor, sigue los estilos de código y añade tests si aplica.
 ---
 
 ## 🙏 Agradecimientos
+
 - A todo el equipo de desarrollo y testers
 - A la comunidad open source
 - A quienes usan y mejoran MOVEO cada día
@@ -240,6 +253,7 @@ Por favor, sigue los estilos de código y añade tests si aplica.
 ---
 
 ## 🛠️ Tecnologías usadas
+
 - **Frontend:** React 18, Vite, Material UI, React Router, Context API
 - **Backend:** Laravel 10+, PHP 8+, Sanctum, Eloquent ORM
 - **Base de datos:** SQLite (desarrollo), MySQL/PostgreSQL (producción)
@@ -260,8 +274,8 @@ moveo/
 
 ## 🚀 Instalación rápida
 
-
 ### 1. Clona el repositorio
+
 ```bash
 git clone https://github.com/anndrees/moveo-software.git
 cd moveo
@@ -296,14 +310,15 @@ npm run dev              # Inicia el servidor en http://localhost:5173
 
 ## 🛠️ Principales comandos
 
-
 ### Backend
+
 - `php artisan migrate`         → Ejecuta migraciones
 - `php artisan db:seed`         → Ejecuta los seeders
 - `php artisan storage:link`    → Enlaza la carpeta de imágenes
 - `php artisan serve`           → Levanta el servidor Laravel
 
 ### Frontend
+
 - `npm install`                 → Instala dependencias
 - `npm run dev`                 → Arranca el servidor de desarrollo
 - `npm run build`               → Genera build de producción
@@ -342,15 +357,19 @@ npm run dev              # Inicia el servidor en http://localhost:5173
 ## ❓ Preguntas frecuentes (FAQ)
 
 **¿Cómo cambio el tipo de base de datos?**
+
 - Edita el archivo `backend/.env` y ajusta las variables `DB_CONNECTION`, `DB_DATABASE`, etc. para MySQL o PostgreSQL.
 
 **¿Cómo subo imágenes?**
+
 - Las imágenes se suben desde el panel de administración y se guardan en `backend/storage/app/public`.
 
 **¿Cómo restablezco la base de datos?**
+
 - Elimina el archivo `database.sqlite` (si usas SQLite) y ejecuta `php artisan migrate --seed`.
 
 **¿Cómo agrego un nuevo administrador?**
+
 - Crea un usuario desde la base de datos y asígnale el rol `admin`.
 
 ---
@@ -366,6 +385,7 @@ npm run dev              # Inicia el servidor en http://localhost:5173
 ---
 
 ## 🔗 Enlaces útiles
+
 - [Documentación Laravel](https://laravel.com/docs)
 - [Documentación React](https://es.react.dev/)
 - [Material UI](https://mui.com/)
@@ -376,8 +396,9 @@ npm run dev              # Inicia el servidor en http://localhost:5173
 ## 📬 Contacto
 
 ¿Tienes dudas, sugerencias o encontraste un bug?
+
 - Abre un issue en GitHub
-- O contacta con el equipo: **anndrees31@gmail.com**
+- O contacta con el equipo: **<anndrees31@gmail.com>**
 
 ---
 

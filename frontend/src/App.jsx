@@ -13,6 +13,7 @@ import AdminDashboard from './paginas/AdminDashboard';
 import AdminVehiculos from './paginas/AdminVehiculos';
 import AdminVehiculoDetalle from './paginas/AdminVehiculoDetalle';
 import AdminReservas from './paginas/AdminReservas';
+import DetalleReserva from './paginas/DetalleReserva';
 import AdminClientes from './paginas/AdminClientes';
 import AdminMantenimientos from './paginas/AdminMantenimientos';
 import AdminReportes from './paginas/AdminReportes';
@@ -97,7 +98,7 @@ function App() {
             </LayoutPrivado>
           </RutaPrivada>
         } />
-        <Route path="/admin/vehicles/:id" element={
+        <Route path="/admin/vehiculos/:id" element={
           <RutaPrivada soloAdmin={true}>
             <LayoutPrivado soloAdmin={true}>
               <AdminVehiculoDetalle />
@@ -108,6 +109,13 @@ function App() {
           <RutaPrivada soloAdmin={true}>
             <LayoutPrivado soloAdmin={true}>
               <AdminReservas />
+            </LayoutPrivado>
+          </RutaPrivada>
+        } />
+        <Route path="/admin/reservations/:id" element={
+          <RutaPrivada soloAdmin={true}>
+            <LayoutPrivado soloAdmin={true}>
+              <DetalleReserva />
             </LayoutPrivado>
           </RutaPrivada>
         } />

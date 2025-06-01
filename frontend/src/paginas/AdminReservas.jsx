@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Table from '@mui/material/Table';
@@ -22,12 +24,19 @@ import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import Autocomplete from '@mui/material/Autocomplete';
 import dayjs from 'dayjs';
 import Pagination from '@mui/material/Pagination';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
 import PersonIcon from '@mui/icons-material/Person';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+
+// Formatea el estado: primera letra mayúscula y espacios
+function formatearEstado(estado) {
+  if (!estado) return '';
+  return estado.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
 
 export default function AdminReservas() {
   const [filtros, setFiltros] = useState({
@@ -65,7 +74,8 @@ export default function AdminReservas() {
   const [paginaActual, setPaginaActual] = useState(1);
 
   const token = localStorage.getItem('token');
-  const urlApi = import.meta.env.DEV ? 'http://localhost:8000/api' : '/api';
+  const navigate = useNavigate();
+  const urlApi = 'http://localhost:8000/api';
 
   useEffect(() => {
     obtenerReservas(paginaActual);
@@ -129,8 +139,25 @@ export default function AdminReservas() {
       });
       if (!resp.ok) throw new Error('Error al cargar reservas');
       const data = await resp.json();
+      // Ajustar estado automáticamente según la fecha actual, salvo 'pendiente' o 'cancelada'
+      const hoy = dayjs();
+      const reservasAjustadas = (data.data || []).map(reserva => {
+        if (['pendiente', 'cancelada'].includes(reserva.estado)) return reserva;
+        const inicio = dayjs(reserva.fecha_inicio);
+        const fin = dayjs(reserva.fecha_fin);
+        let nuevoEstado = reserva.estado;
+        if (hoy.isBefore(inicio, 'day')) {
+          nuevoEstado = 'confirmada';
+        } else if (hoy.isAfter(fin, 'day')) {
+          nuevoEstado = 'finalizada';
+        } else if ((hoy.isAfter(inicio.subtract(1, 'day'), 'day') && hoy.isBefore(fin.add(1, 'day'), 'day'))) {
+          nuevoEstado = 'en_curso';
+        }
+        // Si el estado ha cambiado, devolver una copia con el nuevo estado
+        return { ...reserva, estado: nuevoEstado };
+      });
       setReservas({
-        data: data.data || [],
+        data: reservasAjustadas,
         current_page: data.current_page || 1,
         last_page: data.last_page || 1,
         per_page: data.per_page || 10,
@@ -233,6 +260,15 @@ export default function AdminReservas() {
     if (!reservaActual.fecha_inicio) errores.fecha_inicio = 'La fecha de inicio es obligatoria';
     if (!reservaActual.fecha_fin) errores.fecha_fin = 'La fecha de fin es obligatoria';
     if (!reservaActual.estado) errores.estado = 'El estado es obligatorio';
+    // Validación de rango de fechas
+    if (reservaActual.fecha_inicio && reservaActual.fecha_fin) {
+      const inicio = dayjs(reservaActual.fecha_inicio);
+      const fin = dayjs(reservaActual.fecha_fin);
+      if (fin.isBefore(inicio, 'day')) {
+        errores.fecha_fin = 'La fecha de fin no puede ser anterior a la fecha de inicio';
+        errores.fecha_inicio = 'La fecha de inicio no puede ser posterior a la fecha de fin';
+      }
+    }
     return errores;
   };
 
@@ -247,6 +283,15 @@ export default function AdminReservas() {
     try {
       const metodo = reservaActual.id ? 'PUT' : 'POST';
       const url = reservaActual.id ? `${urlApi}/reservas/${reservaActual.id}` : `${urlApi}/reservas`;
+      // Calcular precio_total
+      let precio_total;
+      const vehiculo = vehiculos.data.find(v => v.id === reservaActual.vehiculo_id);
+      if (vehiculo && vehiculo.precio_dia && reservaActual.fecha_inicio && reservaActual.fecha_fin) {
+        const inicio = dayjs(reservaActual.fecha_inicio);
+        const fin = dayjs(reservaActual.fecha_fin);
+        const dias = fin.diff(inicio, 'day') + 1;
+        precio_total = dias > 0 ? dias * vehiculo.precio_dia : vehiculo.precio_dia;
+      }
       const resp = await fetch(url, {
         method: metodo,
         headers: {
@@ -257,6 +302,7 @@ export default function AdminReservas() {
           ...reservaActual,
           fecha_inicio: reservaActual.fecha_inicio ? dayjs(reservaActual.fecha_inicio).format('YYYY-MM-DD') : '',
           fecha_fin: reservaActual.fecha_fin ? dayjs(reservaActual.fecha_fin).format('YYYY-MM-DD') : '',
+          precio_total,
         }),
       });
       if (!resp.ok) {
@@ -407,11 +453,41 @@ export default function AdminReservas() {
                     <TableCell>{reserva.cliente?.nombre || ''} {reserva.cliente?.apellidos || ''}</TableCell>
                     <TableCell>{dayjs(reserva.fecha_inicio).format('DD-MM-YYYY')}</TableCell>
                     <TableCell>{dayjs(reserva.fecha_fin).format('DD-MM-YYYY')}</TableCell>
-                    <TableCell>{reserva.estado}</TableCell>
+                    <TableCell>
+  <Chip 
+    label={formatearEstado(reserva.estado)}
+    color={
+      reserva.estado === 'pendiente' ? 'default' :
+      reserva.estado === 'confirmada' ? 'primary' :
+      reserva.estado === 'en_curso' ? 'warning' :
+      reserva.estado === 'finalizada' ? 'success' :
+      reserva.estado === 'cancelada' ? 'error' : 'default'}
+    variant={reserva.estado === 'pendiente' ? 'outlined' : 'filled'}
+    sx={{ fontWeight: 600, fontSize: '0.95em', minWidth: 110 }}
+  />
+</TableCell>
                     <TableCell align="center">
-                      <IconButton color="info" disabled><VisibilityIcon /></IconButton>
-                      <IconButton color="primary" onClick={() => abrirEditar(reserva)}><EditIcon /></IconButton>
-                      <IconButton color="error" onClick={() => setEliminando(reserva.id)}><DeleteIcon /></IconButton>
+                      <IconButton 
+                        color="info" 
+                        onClick={() => navigate(`/admin/reservations/${reserva.id}`)}
+                        title="Ver detalles"
+                      >
+                        <VisibilityIcon />
+                      </IconButton>
+                      <IconButton 
+                        color="primary" 
+                        onClick={() => abrirEditar(reserva)}
+                        title="Editar"
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton 
+                        color="error" 
+                        onClick={() => setEliminando(reserva.id)}
+                        title="Eliminar"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))
@@ -467,53 +543,57 @@ export default function AdminReservas() {
           <DialogContent>
             <Box sx={{ mt: 1 }}>
               <Typography variant="subtitle1" sx={{ mb: 1 }}>Vehículo *</Typography>
-              <Select
-                name="vehiculo_id"
-                value={reservaActual?.vehiculo_id || ''}
-                onChange={manejarCambio}
-                error={!!erroresFormulario.vehiculo_id}
-                fullWidth
-              >
-                <MenuItem value="">Selecciona un vehículo</MenuItem>
-                {vehiculos.data.map((v) => (
-                  <MenuItem key={v.id} value={v.id}>{v.matricula} {v.modelo ? `(${v.modelo})` : ''}</MenuItem>
-                ))}
-              </Select>
+              <Autocomplete
+  options={vehiculos.data}
+  getOptionLabel={(v) => v && (v.matricula + (v.modelo ? ` (${v.modelo})` : ''))}
+  isOptionEqualToValue={(option, value) => option.id === value.id}
+  value={vehiculos.data.find(v => v.id === reservaActual?.vehiculo_id) || null}
+  onChange={(_, nuevoVehiculo) => {
+    setReservaActual(prev => ({ ...prev, vehiculo_id: nuevoVehiculo ? nuevoVehiculo.id : '' }));
+    setErroresFormulario(prev => ({ ...prev, vehiculo_id: '' }));
+  }}
+  renderInput={(params) => (
+    <TextField {...params} label="Vehículo *" error={!!erroresFormulario.vehiculo_id} helperText={erroresFormulario.vehiculo_id} fullWidth />
+  )}
+/>
             </Box>
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle1" sx={{ mb: 1 }}>Cliente *</Typography>
-              <Select
-                name="cliente_id"
-                value={reservaActual?.cliente_id || ''}
-                onChange={manejarCambio}
-                error={!!erroresFormulario.cliente_id}
-                fullWidth
-              >
-                <MenuItem value="">Selecciona un cliente</MenuItem>
-                {clientes.data.map((c) => (
-                  <MenuItem key={c.id} value={c.id}>{c.nombre} {c.apellidos}</MenuItem>
-                ))}
-              </Select>
+              <Autocomplete
+  options={clientes.data}
+  getOptionLabel={(c) => c && (c.nombre + (c.apellidos ? ` ${c.apellidos}` : '') + (c.documento_identidad ? ` (${c.documento_identidad})` : ''))}
+  isOptionEqualToValue={(option, value) => option.id === value.id}
+  value={clientes.data.find(c => c.id === reservaActual?.cliente_id) || null}
+  onChange={(_, nuevoCliente) => {
+    setReservaActual(prev => ({ ...prev, cliente_id: nuevoCliente ? nuevoCliente.id : '' }));
+    setErroresFormulario(prev => ({ ...prev, cliente_id: '' }));
+  }}
+  renderInput={(params) => (
+    <TextField {...params} label="Cliente *" error={!!erroresFormulario.cliente_id} helperText={erroresFormulario.cliente_id} fullWidth />
+  )}
+/>
             </Box>
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle1" sx={{ mb: 1 }}>Fecha inicio *</Typography>
               <DatePicker
-                label="Fecha inicio *"
-                value={reservaActual?.fecha_inicio ? dayjs(reservaActual.fecha_inicio) : null}
-                onChange={manejarFechaInicio}
-                format="DD-MM-YYYY"
-                slotProps={{ textField: { fullWidth: true, error: !!erroresFormulario.fecha_inicio, helperText: erroresFormulario.fecha_inicio } }}
-              />
+  label="Fecha inicio *"
+  value={reservaActual?.fecha_inicio ? dayjs(reservaActual.fecha_inicio) : null}
+  onChange={manejarFechaInicio}
+  format="DD-MM-YYYY"
+  shouldDisableDate={date => reservaActual?.fecha_fin ? date.isAfter(dayjs(reservaActual.fecha_fin), 'day') : false}
+  slotProps={{ textField: { fullWidth: true, error: !!erroresFormulario.fecha_inicio, helperText: erroresFormulario.fecha_inicio } }}
+/>
             </Box>
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle1" sx={{ mb: 1 }}>Fecha fin *</Typography>
               <DatePicker
-                label="Fecha fin *"
-                value={reservaActual?.fecha_fin ? dayjs(reservaActual.fecha_fin) : null}
-                onChange={manejarFechaFin}
-                format="DD-MM-YYYY"
-                slotProps={{ textField: { fullWidth: true, error: !!erroresFormulario.fecha_fin, helperText: erroresFormulario.fecha_fin } }}
-              />
+  label="Fecha fin *"
+  value={reservaActual?.fecha_fin ? dayjs(reservaActual.fecha_fin) : null}
+  onChange={manejarFechaFin}
+  format="DD-MM-YYYY"
+  shouldDisableDate={date => reservaActual?.fecha_inicio ? date.isBefore(dayjs(reservaActual.fecha_inicio), 'day') : false}
+  slotProps={{ textField: { fullWidth: true, error: !!erroresFormulario.fecha_fin, helperText: erroresFormulario.fecha_fin } }}
+/>
             </Box>
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle1" sx={{ mb: 1 }}>Estado *</Typography>

@@ -7,12 +7,27 @@ use Illuminate\Database\Eloquent\Model;
 class Mantenimiento extends Model
 {
     protected $fillable = [
-        'fecha',
+        'vehiculo_id',
+        'titulo',
+        'descripcion',
+        'fecha_inicio',
+        'fecha_fin',
         'tipo',
+        'prioridad',
         'costo',
         'estado',
+        'taller',
+        'factura_numero',
+        'responsable',
+        'kilometraje',
+        'observaciones',
+        'mano_obra',
+        'materiales',
         'realizado_por',
-        'vehiculo_id',
+        'documentos',
+        'created_at',
+        'updated_at',
+        'deleted_at',
     ];
 
     public function vehiculo()

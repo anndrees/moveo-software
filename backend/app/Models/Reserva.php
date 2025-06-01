@@ -13,6 +13,7 @@ class Reserva extends Model
         'fecha_inicio',
         'fecha_fin',
         'estado',
+        'precio_total',
     ];
     public function cliente()
     {

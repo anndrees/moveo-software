@@ -117,7 +117,30 @@ class UsuarioController extends Controller
     public function historialReservas(Request $request)
     {
         $usuario = Auth::user();
-        $reservas = $usuario->reservas()->with('vehiculo')->orderBy('fecha_inicio', 'desc')->get();
+        // Buscar cliente con el mismo email
+        $cliente = \App\Models\Cliente::where('email', $usuario->email)->first();
+        if ($cliente) {
+            $reservas = $cliente->reservas()->with('vehiculo')->orderBy('fecha_inicio', 'desc')->get();
+        } else {
+            $reservas = $usuario->reservas()->with('vehiculo')->orderBy('fecha_inicio', 'desc')->get();
+        }
         return response()->json($reservas);
     }
+
+    // GET /api/usuarios/vehiculos-reservados
+    public function vehiculosReservados(Request $request)
+    {
+        $usuario = Auth::user();
+        // Buscar cliente con el mismo email
+        $cliente = \App\Models\Cliente::where('email', $usuario->email)->first();
+        if ($cliente) {
+            $reservas = $cliente->reservas()->with('vehiculo')->get();
+        } else {
+            $reservas = $usuario->reservas()->with('vehiculo')->get();
+        }
+        // Extraer los vehículos únicos de las reservas
+        $vehiculos = $reservas->pluck('vehiculo')->unique('id')->values();
+        return response()->json($vehiculos);
+    }
 }
+

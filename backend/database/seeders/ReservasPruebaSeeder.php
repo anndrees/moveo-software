@@ -19,9 +19,8 @@ class ReservasPruebaSeeder extends Seeder
         // Obtener todos los vehículos y clientes
         $vehiculos = Vehiculo::all();
         $clientes = Cliente::all();
-        $usuariosClientes = User::where('rol', 'cliente')->get();
         
-        if ($vehiculos->isEmpty() || ($clientes->isEmpty() && $usuariosClientes->isEmpty())) {
+        if ($vehiculos->isEmpty() || $clientes->isEmpty()) {
             $this->command->error('No hay suficientes vehículos o clientes para crear reservas.');
             return;
         }
@@ -36,22 +35,10 @@ class ReservasPruebaSeeder extends Seeder
             // Seleccionar un vehículo aleatorio
             $vehiculo = $vehiculos->random();
             
-            // Seleccionar cliente aleatorio (puede ser usuario o cliente directo)
-            $esUsuario = $faker->boolean(70); // 70% de probabilidad de ser usuario
-            $clienteId = null;
-            $clienteType = null;
-            
-            if ($esUsuario && !$usuariosClientes->isEmpty()) {
-                $usuario = $usuariosClientes->random();
-                $clienteId = $usuario->id;
-                $clienteType = 'App\\Models\\User';
-            } elseif (!$clientes->isEmpty()) {
-                $cliente = $clientes->random();
-                $clienteId = $cliente->id;
-                $clienteType = 'App\\Models\\Cliente';
-            } else {
-                continue; // No hay clientes disponibles
-            }
+            // Seleccionar un cliente aleatorio de la tabla de clientes
+            $cliente = $clientes->random();
+            $clienteId = $cliente->id;
+            $clienteType = 'App\\Models\\Cliente';
             
             // Fechas de reserva
             $fechaInicio = Carbon::instance($faker->dateTimeBetween('-6 months', '+3 months'));

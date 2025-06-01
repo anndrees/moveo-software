@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 
 
 class VehiculoController extends Controller
@@ -63,6 +63,14 @@ class VehiculoController extends Controller
             $datos['imagen'] = $ruta;
         }
         $vehiculo = \App\Models\Vehiculo::create($datos);
+        // Log de creación de vehículo
+        $usuario = $peticion->user();
+        \Log::info('Vehículo creado', [
+            'matricula' => $vehiculo->matricula,
+            'modelo' => $vehiculo->modelo,
+            'usuario_id' => $usuario ? $usuario->id : null,
+            'usuario_email' => $usuario ? $usuario->email : null,
+        ]);
         // Devolver URL accesible
         if ($vehiculo->imagen) {
             $vehiculo->imagen = asset('storage/' . $vehiculo->imagen);
@@ -225,18 +233,51 @@ class VehiculoController extends Controller
             'fecha_proximo_mantenimiento' => 'nullable|date',
             'imagen' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
-        if ($peticion->hasFile('imagen')) {
+        // Log de depuración: ¿qué llega en la petición?
+        Log::info('[VehiculoController@update] Datos recibidos', [
+            'all' => $peticion->all(),
+            'hasFile_imagen' => $peticion->hasFile('imagen'),
+            'files' => $peticion->files->all(),
+            'method' => $peticion->method(),
+        ]);
+        // Si se solicita eliminar la imagen
+        if ($peticion->has('eliminar_imagen') && $peticion->input('eliminar_imagen') == '1') {
+            Log::info('[VehiculoController@update] Solicitada eliminación de imagen');
+            if ($vehiculo->imagen) {
+                Storage::disk('public')->delete($vehiculo->imagen);
+                $datos['imagen'] = null;
+            }
+        } else if ($peticion->hasFile('imagen')) {
+            Log::info('[VehiculoController@update] Se recibió archivo imagen', [
+                'file' => $peticion->file('imagen')
+            ]);
             // Eliminar imagen anterior si existe
             if ($vehiculo->imagen) {
                 Storage::disk('public')->delete($vehiculo->imagen);
             }
             $ruta = $peticion->file('imagen')->store('vehiculos', 'public');
             $datos['imagen'] = $ruta;
+            Log::info('[VehiculoController@update] Imagen guardada', [
+                'ruta' => $ruta
+            ]);
         }
         $vehiculo->update($datos);
-        // Devolver URL accesible
+        // Recargar el modelo para obtener la ruta actualizada de la imagen
+        $vehiculo->refresh();
+        
+        \Log::info('[VehiculoController@update] Vehículo actualizado', [
+            'id' => $vehiculo->id,
+            'matricula' => $vehiculo->matricula,
+            'imagen' => $vehiculo->imagen,
+        ]);
+        
+        // Devolver URL accesible o imagen por defecto
         if ($vehiculo->imagen) {
             $vehiculo->imagen = asset('storage/' . $vehiculo->imagen);
+            \Log::info('[VehiculoController@update] Imagen devuelta', ['url' => $vehiculo->imagen]);
+        } else {
+            $vehiculo->imagen = asset('img/vehiculo-default.jpg');
+            \Log::info('[VehiculoController@update] Imagen devuelta (por defecto)', ['url' => $vehiculo->imagen]);
         }
         return response()->json($vehiculo);
     }

@@ -50,7 +50,7 @@ export default function AdminVehiculos() {
     localizacion: '',
     estado: ''
   });
-  const [localizaciones, setLocalizaciones] = useState([]);
+  const [] = useState([]);
 
   const { usuario, cargando } = useAutenticacion();
   const [vehiculos, setVehiculos] = useState(() => ({
@@ -71,27 +71,7 @@ export default function AdminVehiculos() {
   // Ruta base de la API
   const RUTA_API = import.meta.env.DEV ? 'http://localhost:8000' : '';
 
-  // Obtener localizaciones únicas para el select
-  const obtenerLocalizaciones = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const respuesta = await fetch(`${RUTA_API}/api/vehiculos`, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      
-      if (!respuesta.ok) throw new Error('Error al obtener localizaciones');
-      const data = await respuesta.json();
-      
-      // Extraer localizaciones únicas
-      const locs = [...new Set(data.data.map(v => v.localizacion).filter(Boolean))];
-      setLocalizaciones(locs);
-    } catch (err) {
-      console.error('Error al cargar localizaciones:', err);
-    }
-  };
+  
 
   const obtenerVehiculos = async (pagina = 1, vistaActual = vista) => {
     setCargandoVehiculos(true);
@@ -106,7 +86,7 @@ export default function AdminVehiculos() {
         per_page: porPagina,
         ...(filtros.matricula && { matricula: filtros.matricula }),
         ...(filtros.tipo && { tipo: filtros.tipo }),
-        ...(filtros.localizacion && { localizacion: filtros.localizacion }),
+        
         ...(filtros.estado && { estado: filtros.estado })
       });
       
@@ -193,7 +173,7 @@ export default function AdminVehiculos() {
 
     if (usuario && usuario.rol === 'admin') {
       obtenerVehiculos(paginaActual);
-      cargarLocalizaciones();
+      // cargarLocalizaciones();
     } else if (usuario && usuario.rol !== 'admin') {
       setError('No tienes permisos para acceder a esta sección');
       setSnackbar({
@@ -232,7 +212,7 @@ export default function AdminVehiculos() {
       modelo: '', 
       tipo: 'SUV', 
       imagen: '', 
-      localizacion: '', 
+      
       estado: 'disponible', 
       fecha_proximo_mantenimiento: '',
       precio_dia: 0,
@@ -299,7 +279,7 @@ export default function AdminVehiculos() {
     if (!vehiculoActual.matricula?.trim()) errores.matricula = 'La matrícula es obligatoria';
     if (!vehiculoActual.modelo?.trim()) errores.modelo = 'El modelo es obligatorio';
     if (!vehiculoActual.tipo) errores.tipo = 'El tipo es obligatorio';
-    if (!vehiculoActual.localizacion?.trim()) errores.localizacion = 'La localización es obligatoria';
+    
     if (!vehiculoActual.estado) errores.estado = 'El estado es obligatorio';
     if (!vehiculoActual.precio_dia || vehiculoActual.precio_dia <= 0) errores.precio_dia = 'El precio por día debe ser mayor a 0';
     if (!vehiculoActual.color?.trim()) errores.color = 'El color es obligatorio';
@@ -445,21 +425,6 @@ export default function AdminVehiculos() {
               <TextField
                 select
                 size="small"
-                name="localizacion"
-                label="Localización"
-                value={filtros.localizacion}
-                onChange={manejarCambioFiltro}
-                sx={{ minWidth: 180, bgcolor: 'white' }}
-              >
-                <MenuItem value="">Todas</MenuItem>
-                {localizaciones.map((loc) => (
-                  <MenuItem key={loc} value={loc}>{loc}</MenuItem>
-                ))}
-              </TextField>
-              
-              <TextField
-                select
-                size="small"
                 name="estado"
                 label="Estado"
                 value={filtros.estado}
@@ -499,7 +464,7 @@ export default function AdminVehiculos() {
                   <TableCell>Matrícula</TableCell>
                   <TableCell>Modelo</TableCell>
                   <TableCell>Tipo</TableCell>
-                  <TableCell>Localización</TableCell>
+                  
                   <TableCell>Próximo mantenimiento</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell>Acciones</TableCell>
@@ -533,7 +498,7 @@ export default function AdminVehiculos() {
                       <TableCell>{vehiculo.matricula}</TableCell>
                       <TableCell>{vehiculo.modelo}</TableCell>
                       <TableCell>{vehiculo.tipo}</TableCell>
-                      <TableCell>{vehiculo.localizacion}</TableCell>
+                      
                       <TableCell>{vehiculo.fecha_proximo_mantenimiento || '-'}</TableCell>
                       <TableCell>
                         <Chip
@@ -546,9 +511,7 @@ export default function AdminVehiculos() {
                           <IconButton component={Link} to={`/admin/vehiculos/${vehiculo.id}`} color="info" size="small" title="Ver detalle">
                             <VisibilityIcon />
                           </IconButton>
-                          <IconButton color="warning" size="small" onClick={() => abrirEditar(vehiculo)} title="Editar">
-                            <EditIcon />
-                          </IconButton>
+                          
                           <IconButton color="error" size="small" onClick={() => eliminarVehiculo(vehiculo.id)} disabled={eliminandoId === vehiculo.id} title="Eliminar">
                             <DeleteIcon />
                           </IconButton>
@@ -627,7 +590,7 @@ export default function AdminVehiculos() {
                   <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>{vehiculo.matricula}</Typography>
                   <Typography variant="subtitle1" sx={{ color: 'text.secondary', mb: 0.5 }}>{vehiculo.modelo}</Typography>
                   <Typography variant="body2" sx={{ color: 'primary.main', mb: 0.5 }}>{vehiculo.tipo}</Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>Ubicación: {vehiculo.localizacion}</Typography>
+                  
                   <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>Próx. mant.: {vehiculo.fecha_proximo_mantenimiento || '-'}</Typography>
                   <Chip
                     label={vehiculo.estado.charAt(0).toUpperCase() + vehiculo.estado.slice(1)}
@@ -639,9 +602,7 @@ export default function AdminVehiculos() {
                     <IconButton component={Link} to={`/admin/vehiculos/${vehiculo.id}`} color="info" size="small" title="Ver detalle">
                       <VisibilityIcon />
                     </IconButton>
-                    <IconButton color="warning" size="small" onClick={() => abrirEditar(vehiculo)} title="Editar">
-                      <EditIcon />
-                    </IconButton>
+                    
                     <IconButton color="error" size="small" onClick={() => eliminarVehiculo(vehiculo.id)} disabled={eliminandoId === vehiculo.id} title="Eliminar">
                       <DeleteIcon />
                     </IconButton>

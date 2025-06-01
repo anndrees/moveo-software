@@ -66,7 +66,7 @@ export default function AdminMantenimientos() {
   const [snackbar, setSnackbar] = useState({ abierto: false, mensaje: '', severidad: 'success' });
 
   const token = localStorage.getItem('token');
-  const urlApi = import.meta.env.DEV ? 'http://localhost:8000/api' : '/api';
+  const urlApi = "http://localhost:8000/api";
 
   // Función para manejar cambios en los filtros
   const manejarCambioFiltro = (e) => {
@@ -77,15 +77,17 @@ export default function AdminMantenimientos() {
     }));
   };
 
-  const limpiarFiltros = () => {
-    setFiltros({
+  const limpiarFiltros = (e) => {
+    e?.preventDefault();
+    const filtrosVacios = {
       matricula: '',
       costo: '',
       taller: '',
       estado: '',
       tipo: ''
-    });
-    obtenerMantenimientos(1);
+    };
+    setFiltros(filtrosVacios);
+    obtenerMantenimientos(1, filtrosVacios);
   };
 
   // Función para manejar la búsqueda
@@ -233,7 +235,11 @@ export default function AdminMantenimientos() {
       factura_numero: '',
       vehiculo_id: '',
       kilometraje: '',
-      observaciones: ''
+      observaciones: '',
+      prioridad: 'media',
+      responsable: 'Sistema',
+      mano_obra: 0,
+      materiales: 0
     });
     setErroresFormulario({});
     setAbrirModal(true);
@@ -253,22 +259,29 @@ export default function AdminMantenimientos() {
       const vehiculoEncontrado = vehiculosActualizados.find(v => v.id === vehiculoId);
       
       // Preparar los datos del mantenimiento para el formulario
-      const mantenimientoCompleto = {
+      const datosEnvio = {
         ...mantenimiento,
-        titulo: mantenimiento.titulo || '',
-        descripcion: mantenimiento.descripcion || '',
-        fecha_inicio: mantenimiento.fecha_inicio || new Date().toISOString().split('T')[0],
-        fecha_fin: mantenimiento.fecha_fin || '',
-        tipo: mantenimiento.tipo || '',
-        costo: mantenimiento.costo || '',
-        estado: mantenimiento.estado || 'programado',
-        taller: mantenimiento.taller || '',
-        factura_numero: mantenimiento.factura_numero || '',
-        // Si no se encuentra el vehículo, establecer como cadena vacía
-        vehiculo_id: vehiculoEncontrado ? vehiculoId.toString() : '',
-        kilometraje: mantenimiento.kilometraje || '',
-        observaciones: mantenimiento.observaciones || ''
+        vehiculo_id: mantenimiento.vehiculo_id,
+        fecha_inicio: mantenimiento.fecha_inicio,
+        fecha_fin: mantenimiento.fecha_fin || null,
+        costo: mantenimiento.costo,
+        prioridad: mantenimiento.prioridad ? mantenimiento.prioridad : 'media',
+        responsable: mantenimiento.responsable ? mantenimiento.responsable : 'Sistema',
+        mano_obra: (mantenimiento.mano_obra !== undefined && mantenimiento.mano_obra !== null) ? mantenimiento.mano_obra : 0,
+        materiales: (mantenimiento.materiales !== undefined && mantenimiento.materiales !== null) ? mantenimiento.materiales : 0,
+        realizado_por: mantenimiento.realizado_por ? mantenimiento.realizado_por : (mantenimiento.responsable ? mantenimiento.responsable : 'Sistema'),
       };
+      // Eliminar cualquier null explícito en estos campos
+      if (datosEnvio.prioridad === null) datosEnvio.prioridad = 'media';
+      if (datosEnvio.responsable === null) datosEnvio.responsable = 'Sistema';
+      if (datosEnvio.mano_obra === null) datosEnvio.mano_obra = 0;
+      if (datosEnvio.materiales === null) datosEnvio.materiales = 0;
+      if (datosEnvio.realizado_por === null) datosEnvio.realizado_por = datosEnvio.responsable;
+      
+      // Si no se encuentra el vehículo, establecer como cadena vacía
+      datosEnvio.vehiculo_id = vehiculoEncontrado ? vehiculoId.toString() : '';
+      datosEnvio.kilometraje = mantenimiento.kilometraje || '';
+      datosEnvio.observaciones = mantenimiento.observaciones || '';
       
       // Si no encontramos el vehículo, mostrar un mensaje pero permitir la edición
       if (!vehiculoEncontrado) {
@@ -283,7 +296,7 @@ export default function AdminMantenimientos() {
         });
       }
       
-      setMantenimientoActual(mantenimientoCompleto);
+      setMantenimientoActual(datosEnvio);
       setErroresFormulario({});
       setAbrirModal(true);
       
@@ -376,8 +389,10 @@ export default function AdminMantenimientos() {
         // Convertir campos numéricos
         costo: parseFloat(mantenimientoActual.costo) || 0,
         kilometraje: mantenimientoActual.kilometraje ? parseInt(mantenimientoActual.kilometraje, 10) : null,
-        mano_obra: parseFloat(mantenimientoActual.mano_obra) || 0,
-        materiales: parseFloat(mantenimientoActual.materiales) || 0,
+        mano_obra: mantenimientoActual.mano_obra !== undefined ? parseFloat(mantenimientoActual.mano_obra) : 0,
+        materiales: mantenimientoActual.materiales !== undefined ? parseFloat(mantenimientoActual.materiales) : 0,
+        prioridad: mantenimientoActual.prioridad || 'media',
+        responsable: mantenimientoActual.responsable || 'Sistema',
         // Asegurar que las fechas tengan el formato correcto
         fecha_inicio: mantenimientoActual.fecha_inicio,
         fecha_fin: mantenimientoActual.fecha_fin || null,
@@ -406,19 +421,35 @@ export default function AdminMantenimientos() {
         body: JSON.stringify(datosEnvio),
       });
       if (!resp.ok) {
+        // Intenta mostrar SIEMPRE el error JSON completo
         let mensaje = 'Error al guardar mantenimiento';
+        let errorData = null;
         try {
-          const errorData = await resp.json();
+          errorData = await resp.json();
+          console.error('Error completo del backend:', errorData);
           if (errorData && (errorData.mensaje || errorData.errores)) {
             mensaje = errorData.mensaje || (Array.isArray(errorData.errores) ? errorData.errores.join(', ') : JSON.stringify(errorData.errores));
           }
-        } catch {}
+        } catch (e) {
+          console.error('No se pudo parsear el JSON de error:', e);
+        }
         throw new Error(mensaje);
       }
       cerrarModal();
       obtenerMantenimientos();
     } catch (e) {
-      setError(e.message || 'Error al guardar mantenimiento');
+      // Intenta mostrar el error completo del backend si está disponible
+      if (e.response && typeof e.response.json === 'function') {
+        e.response.json().then(errJson => {
+          console.error('Error completo del backend:', errJson);
+          setError((errJson.mensaje || '') + (errJson.error ? (': ' + errJson.error) : ''));
+        });
+      } else if (e && e.message) {
+        console.error('Error:', e);
+        setError(e.message || 'Error al guardar mantenimiento');
+      } else {
+        setError('Error al guardar mantenimiento');
+      }
     } finally {
       setCargando(false);
     }
